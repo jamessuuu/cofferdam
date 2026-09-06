@@ -51,7 +51,7 @@ it and say exactly where the bound stopped. Random search that finds nothing
 tells you nothing. Exhaustive search that finds nothing tells you something, but
 only if it also tells you how far it got.
 
-## Run it in 60 seconds
+## Install and run it in 60 seconds
 
 ```sh
 git clone https://github.com/jamessuuu/cofferdam && cd cofferdam
