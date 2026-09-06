@@ -50,25 +50,25 @@ function main() {
     const isSelf = rel === 'tools/lint.mjs';
 
     if (!/^(\/\/|\/\*|#!)/.test(text)) {
-      problems.push(rel + ':1 — file does not start with a comment explaining what it is');
+      problems.push(rel + ':1 - file does not start with a comment explaining what it is');
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const at = rel + ':' + (i + 1);
-      if (line.includes('\t')) problems.push(at + ' — literal tab');
-      if (/\s+$/.test(line)) problems.push(at + ' — trailing whitespace');
-      if (line.length > MAX_LINE) problems.push(at + ' — line is ' + line.length + ' chars (max ' + MAX_LINE + ')');
+      if (line.includes('\t')) problems.push(at + ' - literal tab');
+      if (/\s+$/.test(line)) problems.push(at + ' - trailing whitespace');
+      if (line.length > MAX_LINE) problems.push(at + ' - line is ' + line.length + ' chars (max ' + MAX_LINE + ')');
       if (!isSelf && /\bTODO\b|\bFIXME\b|\bXXX\b/.test(line)) {
-        problems.push(at + ' — unresolved marker; either do it or write down why it is not done');
+        problems.push(at + ' - unresolved marker; either do it or write down why it is not done');
       }
       if (isLibrary && /\bconsole\s*\.\s*(log|debug|info)\s*\(/.test(line)) {
-        problems.push(at + ' — console output from a library module; return the value instead');
+        problems.push(at + ' - console output from a library module; return the value instead');
       }
-      if (!isSelf && /\bdebugger\b/.test(line)) problems.push(at + ' — debugger statement');
-      if (line.indexOf(String.fromCharCode(0)) !== -1) problems.push(at + ' — NUL byte in source');
+      if (!isSelf && /\bdebugger\b/.test(line)) problems.push(at + ' - debugger statement');
+      if (line.indexOf(String.fromCharCode(0)) !== -1) problems.push(at + ' - NUL byte in source');
     }
-    if (text.length > 0 && !text.endsWith('\n')) problems.push(rel + ' — no trailing newline');
+    if (text.length > 0 && !text.endsWith('\n')) problems.push(rel + ' - no trailing newline');
   }
 
   // Every planted bug must be findable from src/bugs.js, and every build flag
@@ -76,7 +76,7 @@ function main() {
   // cannot fire.
   const bugsSrc = fs.readFileSync(path.join(ROOT, 'src', 'bugs.js'), 'utf8');
   const ids = Array.from(bugsSrc.matchAll(/^\s*id: '([a-z-]+)',$/gm)).map((m) => m[1]);
-  if (ids.length === 0) problems.push('src/bugs.js — no planted fixtures found; the parser or the file is broken');
+  if (ids.length === 0) problems.push('src/bugs.js - no planted fixtures found; the parser or the file is broken');
   const allSrc = files
     .filter((f) => !f.includes('bugs.js'))
     .map((f) => fs.readFileSync(f, 'utf8'))
@@ -84,7 +84,7 @@ function main() {
   for (const id of ids) {
     const flag = id.replace(/-([a-z])/g, (_m, c) => c.toUpperCase());
     if (!new RegExp('flags\\.' + flag + '\\b').test(allSrc)) {
-      problems.push('src/bugs.js — build flag "' + id + '" is declared but never read; it cannot fire');
+      problems.push('src/bugs.js - build flag "' + id + '" is declared but never read; it cannot fire');
     }
   }
 
@@ -93,13 +93,13 @@ function main() {
   const appJs = fs.readFileSync(path.join(ROOT, 'web', 'app.js'), 'utf8');
   for (const forbidden of ['fetch(', 'XMLHttpRequest', 'import(']) {
     if (appJs.includes(forbidden)) {
-      problems.push('web/app.js — uses ' + forbidden + '; the page must open from file:// with no server');
+      problems.push('web/app.js - uses ' + forbidden + '; the page must open from file:// with no server');
     }
   }
   const html = fs.readFileSync(path.join(ROOT, 'web', 'index.html'), 'utf8');
   const externalSrc = Array.from(html.matchAll(/<(?:script|link)[^>]*(?:src|href)="(https?:)?\/\//g));
   if (externalSrc.length > 0) {
-    problems.push('web/index.html — loads ' + externalSrc.length +
+    problems.push('web/index.html - loads ' + externalSrc.length +
       ' external resource(s); the page must be self-contained');
   }
 

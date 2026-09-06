@@ -6,7 +6,7 @@ could actually have produced.
 
 Not a fuzzer. There is no sampling and no luck: a workload's I/O is recorded,
 every boundary between two operations becomes a crash point, and at each one the
-reorderings of the writes that had not been fsynced are enumerated — all of
+reorderings of the writes that had not been fsynced are enumerated - all of
 them, up to a stated bound, with the bound reported rather than hidden.
 
 **The headline, measured, not asserted:** 200 workloads of the correct build
@@ -28,11 +28,11 @@ $ node src/cli.js control
 ## Prior art, on the first line, because the method is not mine
 
 The method is bounded black-box crash testing. It comes from ALICE/BOB
-(Pillai et al., *All File Systems Are Not Created Equal*, OSDI 2014 — 60 crash
+(Pillai et al., *All File Systems Are Not Created Equal*, OSDI 2014 - 60 crash
 vulnerabilities across 11 filesystems) and from
 [CrashMonkey/ACE](https://github.com/utsaslab/crashmonkey) (Mohan et al.,
 *Finding Crash-Consistency Bugs with Bounded Black-Box Crash Testing*, OSDI
-2018 — 24 bugs in production Linux filesystems, one of them in a formally
+2018 - 24 bugs in production Linux filesystems, one of them in a formally
 verified one). Their published finding, that crash-consistency bugs
 overwhelmingly reproduce in three operations or fewer, is the entire reason a
 bounded space is worth enumerating exhaustively instead of sampling.
@@ -44,7 +44,7 @@ application that *trusts* one.
 
 Both plant bugs and check invariants, and that is where the similarity stops.
 [kedge](https://github.com/jamessuuu/kedge) samples an enormous space randomly
-by seed — a five-node Raft cluster has more executions than anyone can count, so
+by seed - a five-node Raft cluster has more executions than anyone can count, so
 the honest move is to draw from it. cofferdam does the opposite: the space of
 crash points in one workload is *small*, so the honest move is to visit all of
 it and say exactly where the bound stopped. Random search that finds nothing
@@ -133,7 +133,7 @@ Every crash point comes back `consistent`, `corrupt`, or `unverifiable`.
 The third is forced by the bound. At a crash point with *n* un-fsynced writes in
 flight there are 2^n orderings. When *n* is at or below the reorder bound, all of
 them are enumerated and the answer is real. When it is above, a fixed sample is
-run instead — and a crash point whose sample found nothing has **not** been
+run instead - and a crash point whose sample found nothing has **not** been
 shown to be safe. Reporting that as a pass would be the exact lie this project
 exists to refuse. A corruption found under a sample is still definitive; an
 absence under a sample is not evidence of anything.
@@ -149,7 +149,7 @@ What the bound costs, measured over 30 workloads of the correct build:
 
 Reproduce it with `node src/cli.js control`. The reason bound 2 is already
 enough is itself the finding: **the correct build never has more than two writes
-in flight at once.** That is what an `fsync` after every record buys — the
+in flight at once.** That is what an `fsync` after every record buys - the
 reorder space stays small enough to finish, so these crash points are proven
 rather than sampled. A build that acknowledges writes before flushing them does
 not have that property, and its enumeration reports 4 unverifiable crash points
@@ -157,38 +157,38 @@ where the correct build reports none.
 
 ## What is actually in here
 
-**`src/device.js`** — the modeled block device, and the only place the crash
+**`src/device.js`** - the modeled block device, and the only place the crash
 model lives. Sector-atomic writes; a larger write may tear at a sector boundary.
 Un-fsynced *data* writes may land in any subset, because independent sectors
 under a write-back cache genuinely can. Un-fsynced *metadata* lands as a prefix
 of issue order, because a journaling filesystem commits metadata transactions in
-order — modelling 2^n metadata interleavings that no real journal produces would
+order - modelling 2^n metadata interleavings that no real journal produces would
 manufacture corruptions that cannot happen. A data write to a file whose
 directory entry never landed is dropped, not an error: the blocks went somewhere
 nothing references.
 
-**`src/store.js`** — the store. `put` appends a checksummed record and fsyncs
+**`src/store.js`** - the store. `put` appends a checksummed record and fsyncs
 before returning. `checkpoint` writes a snapshot, fsyncs it, renames it into
-place, fsyncs the directory, and only then truncates the log — and deliberately
+place, fsyncs the directory, and only then truncates the log - and deliberately
 does *not* fsync that truncation, because once the snapshot is durable the old
 log is redundant. Recovery reads the snapshot, then replays log records whose
 sequence numbers continue from it **contiguously**. That contiguity rule is what
 stops a stale record, left behind by a checkpoint whose truncation never landed,
 from being replayed on top of newer state.
 
-**`src/enumerate.js`** — the enumerator. Crash points are every index into the
+**`src/enumerate.js`** - the enumerator. Crash points are every index into the
 op stream. Schedules are (metadata prefix × data subset × at most one torn
 write, torn at every sector boundary inside it). "At most one torn write" is
 ACE's bound and it is taken for ACE's reason.
 
-**`src/spec.js`** — the checker, and the only file that decides anything. The
+**`src/spec.js`** - the checker, and the only file that decides anything. The
 contract in one sentence: *recovery yields the state after some prefix of the
 issued mutations, and that prefix includes every mutation the API acknowledged
 before the crash.* Because the writer is synchronous and single-threaded, at
 most one mutation is ever in flight, so the legal answers at any crash point are
 exactly two. Anything else is a state the API could not have produced.
 
-**`src/targets/`** — the three real targets, below.
+**`src/targets/`** - the three real targets, below.
 
 ## The planted fixtures, and the negative control
 
@@ -218,7 +218,7 @@ instead of 32. That is what makes the corrupt verdict load-bearing rather than
 incidental (`test/sabotage.test.js`).
 
 It is also deliberately *targeted*. It forgives a lost acknowledged write and
-nothing else, so a recovery that invented a value is still caught — 1 corrupt
+nothing else, so a recovery that invented a value is still caught - 1 corrupt
 crash point with the sabotage on and 1 with it off. A sabotage that just
 returned `consistent` would prove nothing about which branch produces the
 verdict.
@@ -233,7 +233,7 @@ Three of the four fire on every seed, because losing an unflushed write or
 mis-validating a torn record needs one thing to go wrong. `checksum-skipped`
 needs two at once: a checkpoint whose log truncation did not land, *and* a torn
 write on top of the log it left behind. Scanning the first 1,000 seeds
-reproduces it on 169 of them, and 8 of the first 60 — so its fixture sweeps 60
+reproduces it on 169 of them, and 8 of the first 60 - so its fixture sweeps 60
 seeds against a floor of 5 rather than pretending it is a per-seed certainty.
 
 ## Three real targets
@@ -257,8 +257,8 @@ writes then every verdict the enumerator has ever produced is fiction.
 
 **Killing a process does not lose the operating system's page cache.** Only a
 power failure or a block-layer fault injector does that, and neither is
-available in a portable Node test. So the fsync boundary — the one that matters
-most — is unreachable by process kill, and that is measurable rather than
+available in a portable Node test. So the fsync boundary - the one that matters
+most - is unreachable by process kill, and that is measurable rather than
 theoretical:
 
 ```
@@ -279,7 +279,7 @@ software, and exactly why the device is modeled.
    recent commit may be lost on power failure. Applying the durability half of
    cofferdam's specification there produced 69 corruption reports that were not
    defects. Removed by scoping: `OFF` is checked against the *integrity* half
-   only — recovery must land on some prefix of the workload — and it passes 97
+   only - recovery must land on some prefix of the workload - and it passes 97
    real crash images with 0 violations. `FULL` gets the full contract.
 
 2. **A truncated WAL below the schema transaction reads as "sqlite refused to
@@ -294,7 +294,7 @@ software, and exactly why the device is modeled.
    result.** Opening a SQLite database *recovers* it and can checkpoint and
    truncate the WAL. The first version of T2 applied its WAL truncations one
    after another to the same directory, so the second variant was not a crash
-   image at all — it was the first variant's already-recovered database with a
+   image at all - it was the first variant's already-recovered database with a
    hole punched in it. Fixed by capturing every SQLite file once after the kill
    and restoring all of them before each variant.
 
@@ -310,7 +310,7 @@ quietly. On Linux the same call works, which is why CI runs there too.
 
 - **Not a database.** No transactions, no range scans, no indexes, no
   compaction, no MVCC.
-- **Not a replacement for SQLite or LevelDB**, and not a competitor to them —
+- **Not a replacement for SQLite or LevelDB**, and not a competitor to them  - 
   one of them is a target here. If you need durable storage, use one of those.
 - **Single process, single writer, no concurrency model at all.** Every claim in
   this README depends on there being at most one mutation in flight. Concurrent
@@ -415,7 +415,7 @@ what every number above was produced on.
 **On CI, honestly:** `.github/workflows/ci.yml` installs from the lockfile on
 pinned Node versions and runs lint, typecheck, report freshness, the full suite,
 the control, the fixtures, the real targets and the demo on Linux (22.14.0 and
-24.x), then the suite and the targets again on Windows. **It has never run** —
+24.x), then the suite and the targets again on Windows. **It has never run**  - 
 this repository has not been pushed to a remote, so there is no green badge and
 this README will not imply one. What has been verified is the equivalent
 locally: lint clean, typecheck clean, report fresh, 88 passing tests and 1
@@ -439,7 +439,7 @@ the failure mode this whole project is about.
 
 ## Credits and licence
 
-cofferdam is MIT licensed — see [LICENSE](LICENSE). It has no runtime
+cofferdam is MIT licensed - see [LICENSE](LICENSE). It has no runtime
 dependencies.
 
 - Bounded black-box crash testing: Mohan, Martinez, Ponnapalli, Raju &

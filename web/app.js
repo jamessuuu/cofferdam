@@ -122,8 +122,8 @@
       var row = el('tr');
       row.appendChild(el('td', 'k d-' + d.kind, d.key));
       var cell = el('td', 'd-' + d.kind);
-      if (d.kind === 'missing') cell.textContent = d.expected + ' — gone';
-      else if (d.kind === 'extra') cell.textContent = d.got + ' — should not exist';
+      if (d.kind === 'missing') cell.textContent = d.expected + ' - gone';
+      else if (d.kind === 'extra') cell.textContent = d.got + ' - should not exist';
       else {
         cell.appendChild(el('span', null, d.expected));
         cell.appendChild(el('span', 'arrow', '  →  '));
@@ -182,7 +182,7 @@
       var b = el('button', 'cell ' + p.v + (p.i === state.point ? ' sel' : ''));
       b.type = 'button';
       b.setAttribute('aria-label', 'crash point ' + p.i + ': ' + VERDICT_WORD[p.v].toLowerCase() + ', ' + p.op);
-      b.title = 'crash point ' + p.i + ' — ' + VERDICT_WORD[p.v].toLowerCase() + '\n' + p.op;
+      b.title = 'crash point ' + p.i + ' - ' + VERDICT_WORD[p.v].toLowerCase() + '\n' + p.op;
       b.addEventListener('click', function () { select(p.i); });
       grid.appendChild(b);
     });
@@ -308,7 +308,7 @@
       tr.appendChild(el('td', 'num ' + cls, r.verdict));
       tr.appendChild(el('td', 'num', String(r.checked)));
       var last = el('td');
-      last.appendChild(el('div', null, r.title + ' — ' + r.detail));
+      last.appendChild(el('div', null, r.title + ' - ' + r.detail));
       r.notes.forEach(function (/** @type {string} */ n) { last.appendChild(el('div', 'muted', n)); });
       tr.appendChild(last);
       t.appendChild(tr);

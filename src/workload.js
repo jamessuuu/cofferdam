@@ -19,7 +19,7 @@ import { crc32 } from './crc32.js';
 const WIDTHS = [4, 8, 4, SECTOR + 48, 6, 2 * SECTOR + 176, 4, SECTOR - 24];
 
 /**
- * sfc32. Small, fast, and — the only property that matters here — identical on
+ * sfc32. Small, fast, and - the only property that matters here - identical on
  * every machine, because it is integer arithmetic with no floating point.
  * @param {number} seed
  * @returns {() => number} uniform 32-bit unsigned integers

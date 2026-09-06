@@ -1,7 +1,7 @@
 // The store: a write-ahead-logged key/value map, single process, single writer.
 //
 // It is deliberately small, because the interesting part of this project is not
-// the store — it is that every I/O boundary in here is a place the machine can
+// the store - it is that every I/O boundary in here is a place the machine can
 // lose power, and the enumerator visits all of them.
 //
 // On-disk shapes (little-endian):

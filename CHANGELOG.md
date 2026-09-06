@@ -4,7 +4,7 @@ All notable changes to this project are recorded here. Versions follow
 [semantic versioning](https://semver.org/). The version reflects what has
 actually shipped, not what would look mature.
 
-## 0.1.0 — 2026-09-06
+## 0.1.0 - 2026-09-06
 
 First release. Every number below was measured on the day it was written, on
 Node v24.15.0 and Windows 11; the commands that reproduce each one are in the
@@ -31,7 +31,7 @@ README.
   `unverifiable` with the reason.
 - **Five planted fixtures** (`src/bugs.js`): `no-fsync-before-ack`,
   `torn-record-accepted`, `checksum-skipped`, `rename-before-fsync`, and
-  `checker-accept-corrupt` — the last of which breaks the *checker* so its
+  `checker-accept-corrupt` - the last of which breaks the *checker* so its
   failure path can be watched to stop working.
 - **Negative control**: 200 workloads of the correct build, 12,600 crash points,
   24,496 crash schedules, zero corruptions and zero unverifiable results.
@@ -51,8 +51,8 @@ README.
 ### Measured during development, and kept
 
 - **A real process kill cannot see a missing fsync.** With
-  `no-fsync-before-ack` planted, 39 real crash points on real NTFS — each one a
-  real `SIGKILL` after 24 acknowledged writes — produced **zero** corruptions,
+  `no-fsync-before-ack` planted, 39 real crash points on real NTFS - each one a
+  real `SIGKILL` after 24 acknowledged writes - produced **zero** corruptions,
   while the modeled device found 32 corrupt crash points on the same build and
   2,572 corrupt recoveries across 3,714 modeled images written to real files.
   That gap is the argument for modelling the device at all.
