@@ -1,0 +1,61 @@
+{
+  "name": "cofferdam",
+  "version": "0.1.0",
+  "description": "A write-ahead-logged key/value store whose every I/O boundary is enumerated as a crash point, with each recovered state checked against the states the API could actually have produced.",
+  "type": "module",
+  "license": "MIT",
+  "author": "James Santos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamessuuu/cofferdam.git"
+  },
+  "homepage": "https://github.com/jamessuuu/cofferdam#readme",
+  "bugs": {
+    "url": "https://github.com/jamessuuu/cofferdam/issues"
+  },
+  "keywords": [
+    "crash-consistency",
+    "durability",
+    "write-ahead-log",
+    "fsync",
+    "recovery",
+    "crashmonkey",
+    "ace",
+    "alice"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "cofferdam": "./src/cli.js"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "web",
+    "crashes.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "demo": "node src/cli.js demo",
+    "enumerate": "node src/cli.js enumerate",
+    "fixtures": "node src/cli.js fixtures",
+    "control": "node src/cli.js control",
+    "targets": "node src/cli.js targets",
+    "verify": "node src/cli.js verify crashes.json",
+    "build:report": "node tools/build-report.mjs",
+    "check:report": "node tools/build-report.mjs --check",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "lint": "node tools/lint.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "typescript": "5.9.2"
+  }
+}
