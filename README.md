@@ -415,9 +415,9 @@ what every number above was produced on.
 **On CI, honestly:** `.github/workflows/ci.yml` installs from the lockfile on
 pinned Node versions and runs lint, typecheck, report freshness, the full suite,
 the control, the fixtures, the real targets and the demo on Linux (22.14.0 and
-24.x), then the suite and the targets again on Windows. **It has never run**  - 
-this repository has not been pushed to a remote, so there is no green badge and
-this README will not imply one. What has been verified is the equivalent
+24.x), then the suite and the targets again on Windows. It first ran on 2026-09-06, on the push of `d6b7a8e`, and passed (GitHub
+Actions run 34035802694). The run is the badge; this README implies nothing
+beyond it. What has been verified is the equivalent
 locally: lint clean, typecheck clean, report fresh, 88 passing tests and 1
 skipped (the `node:sqlite`-absent branch, which cannot run on a build that has
 it), the control clean, every fixture firing, and all four target runs green.
