@@ -1,13 +1,14 @@
 // The report page.
 //
-// It renders one committed run: no server, no fetch, no dataset, no build step
-// at view time. data.js already holds every number, so the page cannot show
-// anything that was not measured and written down.
+// It renders one committed run: no server, no network, no dataset at view time.
+// data.js already holds every number, so the page cannot show anything that was
+// not measured and written down. The lint gate enforces that by forbidding the
+// three ways this file could reach out.
 //
 // The seed, the build and the crash point live in the URL, which makes a
 // specific corruption a link somebody can send you.
 
-/* global window, document, history, location, URLSearchParams */
+/* global window, document, history, location, navigator, URLSearchParams */
 
 (function () {
   'use strict';
@@ -38,6 +39,16 @@
     return n;
   }
 
+  /** @param {number} n @returns {string} */
+  function num(n) { return Number(n).toLocaleString('en-US'); }
+
+  /** @param {any} parent @param {string} tag @param {string|null} cls @param {string} [text] @returns {any} */
+  function add(parent, tag, cls, text) {
+    var n = el(tag, cls, text);
+    parent.appendChild(n);
+    return n;
+  }
+
   /** @param {string|null} seed @param {string|null} build @returns {any} */
   function findView(seed, build) {
     for (var i = 0; i < DATA.views.length; i++) {
@@ -55,6 +66,9 @@
     state.point = isNaN(p) ? firstInteresting(state.view) : clampPoint(state.view, p);
   }
 
+  // The URL carries the selection, never a fragment. Writing "#enumerator" here
+  // made the browser jump past the hero on every load, which threw away the
+  // headline result the page exists to lead with.
   /** @param {boolean} replace */
   function writeUrl(replace) {
     var q = new URLSearchParams();
@@ -73,7 +87,7 @@
   }
 
   // Open on the first crash point that FAILED. The failure is the point of the
-  // page, so it does not wait behind a click.
+  // enumerator, so it does not wait behind a click.
   /** @param {any} view @returns {number} */
   function firstInteresting(view) {
     for (var i = 0; i < view.points.length; i++) if (view.points[i].v === 'x') return i;
@@ -90,7 +104,128 @@
     return from;
   }
 
-  // ---------------------------------------------------------------- rendering
+  // ------------------------------------------------------------ hero: chips
+
+  function renderProvenance() {
+    var box = $('provenance');
+    var c = DATA.control;
+    var t = DATA.targets || {};
+    var chips = [
+      ['workloads', num(c.seeds) + ' seeds'],
+      ['build', 'correct'],
+      ['reorder bound', '4'],
+      ['platform', String(t.platform || DATA.platform)],
+      ['node', String(t.node || DATA.node)],
+      ['measured', String(DATA.measuredOn || DATA.generated)],
+      ['command', 'node src/cli.js control'],
+    ];
+    chips.forEach(function (/** @type {string[]} */ pair) {
+      var li = add(box, 'li', 'chip');
+      add(li, 'b', null, pair[0]);
+      add(li, 'span', null, pair[1]);
+    });
+  }
+
+  function renderControl() {
+    var c = DATA.control;
+    var box = $('control');
+    var rows = [
+      [num(c.seeds), 'workloads of the correct build', false],
+      [num(c.crashPoints), 'crash points enumerated', false],
+      [num(c.schedules), 'crash schedules run', false],
+      [num(c.corrupt), 'corrupt', c.corrupt === 0],
+      [num(c.unverifiable), 'unverifiable', c.unverifiable === 0],
+    ];
+    rows.forEach(function (/** @type {any[]} */ row) {
+      var d = add(box, 'div', 'readout');
+      add(d, 'b', 'readout__n' + (row[2] ? ' is-ok' : ''), row[0]);
+      add(d, 'span', 'readout__l', row[1]);
+    });
+  }
+
+  // -------------------------------------------------------------- fixtures
+
+  /** @param {any} card @param {any} f */
+  function detectionBar(card, f) {
+    var det = add(card, 'div', 'det');
+    var row = add(det, 'div', 'det__row');
+    add(row, 'span', 'det__n', f.seedsCorrupt + ' / ' + f.seedsTried);
+    add(row, 'span', 'det__of', 'seeds reproduce it');
+    add(row, 'span', 'det__pts', num(f.corruptPoints) + ' corrupt crash points');
+
+    var track = add(det, 'div', 'track');
+    var fill = add(track, 'i', null);
+    fill.style.width = (100 * f.seedsCorrupt / f.seedsTried).toFixed(1) + '%';
+    var tick = add(track, 'u', null);
+    tick.style.left = (100 * f.floor / f.seedsTried).toFixed(1) + '%';
+
+    add(det, 'div', 'det__floor',
+      'floor ' + f.floor + '/' + f.seedsTried + '  ·  first reproducing seed ' + f.firstSeed);
+  }
+
+  function renderFixtures() {
+    var box = $('fixture-cards');
+    box.textContent = '';
+
+    DATA.fixtures.forEach(function (/** @type {any} */ f) {
+      /** @type {any} */
+      var bug = null;
+      DATA.bugs.forEach(function (/** @type {any} */ b) { if (b.id === f.id) bug = b; });
+
+      var card = add(box, 'article', 'fx');
+      var top = add(card, 'div', 'fx__top');
+      add(top, 'span', 'fx__id', f.id);
+      add(top, 'span', 'fx__breaks', 'breaks ' + (bug ? bug.breaks : 'store'));
+      add(card, 'p', 'fx__title', f.title);
+      detectionBar(card, f);
+
+      var det = add(card, 'details', 'more');
+      add(det, 'summary', null, 'The mechanism');
+      var body = add(det, 'div', 'more__body');
+      if (bug) add(body, 'p', null, bug.detail);
+      add(body, 'p', null, f.note);
+    });
+
+    // The fifth fixture breaks the CHECKER. It gets its own full-width card,
+    // because "the corrupt verdict is produced by the check and not by the
+    // weather" is a different claim from the four above it.
+    var s = DATA.sabotage;
+    /** @type {any} */
+    var checkerBug = null;
+    DATA.bugs.forEach(function (/** @type {any} */ b) { if (b.breaks === 'checker') checkerBug = b; });
+
+    var card2 = add(box, 'article', 'fx fx--checker');
+    var top2 = add(card2, 'div', 'fx__top');
+    add(top2, 'span', 'fx__id', checkerBug ? checkerBug.id : 'checker-accept-corrupt');
+    add(top2, 'span', 'fx__breaks', 'breaks the checker');
+    add(card2, 'p', 'fx__title',
+      'The same enumeration over the same broken store, with the validator sabotaged to forgive a lost ' +
+      'acknowledged write.');
+
+    var sab = add(card2, 'div', 'sabotage');
+    var pair = add(sab, 'div', 'sabotage__pair');
+    add(pair, 'span', 'sabotage__n is-live', String(s.honest));
+    add(pair, 'span', 'sabotage__arrow', '→');
+    add(pair, 'span', 'sabotage__n is-dead', String(s.sabotaged));
+    add(sab, 'span', 'sabotage__l', 'corrupt points found: honest → sabotaged');
+
+    var pair2 = add(sab, 'div', 'sabotage__pair');
+    add(pair2, 'span', 'sabotage__n is-live', String(s.targetedHonest));
+    add(pair2, 'span', 'sabotage__arrow', '→');
+    add(pair2, 'span', 'sabotage__n is-live', String(s.targetedSabotaged));
+    add(sab, 'span', 'sabotage__l', 'targeted, not a blanket pass: an invented value is still caught');
+
+    var det2 = add(card2, 'details', 'more');
+    add(det2, 'summary', null, 'Why a checker needs its own failure path exercised');
+    var body2 = add(det2, 'div', 'more__body');
+    if (checkerBug) add(body2, 'p', null, checkerBug.detail);
+    add(body2, 'p', null,
+      'A checker whose failure path has never been exercised is decoration. With the flag on, the same ' +
+      'enumeration reports ' + s.sabotaged + ' corruptions instead of ' + s.honest + ' — so the ' +
+      DATA.control.corrupt + ' at the top of this page is a measurement, not a stuck needle.');
+  }
+
+  // ------------------------------------------------------------ enumerator
 
   /** @param {any} node @param {any[]|null} rows */
   function renderStateTable(node, rows) {
@@ -102,10 +237,10 @@
       return;
     }
     rows.forEach(function (/** @type {any} */ row) {
-      var tr = el('tr');
-      tr.appendChild(el('td', 'k', row.key));
-      tr.appendChild(el('td', null, row.value));
-      node.appendChild(tr);
+      var r = el('tr');
+      r.appendChild(el('td', 'k', row.key));
+      r.appendChild(el('td', null, row.value));
+      node.appendChild(r);
     });
   }
 
@@ -134,24 +269,53 @@
     });
   }
 
+  // The per-view statistics were previously one sentence of prose under the
+  // matrix. They are the shape of the run, so they get read as numbers.
+  function renderViewStats() {
+    var v = state.view;
+    var box = $('viewstats');
+    box.textContent = '';
+    var rows = [
+      [num(v.mutations), 'mutations', ''],
+      [num(v.opCount), 'i/o operations', ''],
+      [num(v.crashPoints), 'crash points', ''],
+      [num(v.schedules), 'schedules', ''],
+      [num(v.consistent), 'consistent', 'is-ok'],
+      [num(v.corrupt), 'corrupt', v.corrupt > 0 ? 'is-bad' : ''],
+      [num(v.unverifiable), 'unverifiable', v.unverifiable > 0 ? 'is-warn' : ''],
+    ];
+    rows.forEach(function (/** @type {string[]} */ row) {
+      var d = add(box, 'div', null);
+      add(d, 'b', row[2] || null, row[0]);
+      add(d, 'span', null, row[1]);
+    });
+  }
+
   function renderVerdict() {
     var view = state.view;
     var p = view.points[state.point];
     var box = $('verdict');
     box.className = 'verdict ' + VERDICT_CLASS[p.v];
     $('verdict-word').textContent = VERDICT_WORD[p.v];
-    $('verdict-where').textContent =
-      'crash point ' + p.i + ' of ' + (view.points.length - 1) +
-      '  ·  interrupting: ' + p.op +
-      '  ·  ' + p.s + ' crash schedule' + (p.s === 1 ? '' : 's') + ' at this point' +
-      '  ·  ' + p.d + ' write' + (p.d === 1 ? '' : 's') + ' in flight';
+
+    var where = $('verdict-where');
+    where.textContent = '';
+    /** @param {string} k @param {string} val */
+    function fact(k, val) {
+      var s = add(where, 'span', null, k + ' ');
+      add(s, 'b', null, val);
+    }
+    fact('crash point', p.i + ' of ' + (view.points.length - 1));
+    fact('interrupting', p.op);
+    fact('schedules here', String(p.s));
+    fact('writes in flight', String(p.d));
 
     var f = p.f;
     var why = $('verdict-why');
     if (p.v === 'x' && f) {
       why.textContent = f.reason + ' ' + f.recoveryNote;
-      $('expected-title').textContent = 'Expected (state after ' + f.nearestPrefix + ' mutations; ' +
-        f.acked + ' acknowledged)';
+      $('expected-title').textContent =
+        'Expected (after ' + f.nearestPrefix + ' mutations; ' + f.acked + ' acknowledged)';
       renderStateTable($('expected'), f.expected);
       renderStateTable($('recovered'), f.got);
       renderDiff($('diff'), f.diff);
@@ -181,25 +345,37 @@
     view.points.forEach(function (/** @type {any} */ p) {
       var b = el('button', 'cell ' + p.v + (p.i === state.point ? ' sel' : ''));
       b.type = 'button';
-      b.setAttribute('aria-label', 'crash point ' + p.i + ': ' + VERDICT_WORD[p.v].toLowerCase() + ', ' + p.op);
+      b.style.setProperty('--i', String(p.i));
+      b.setAttribute('aria-label',
+        'crash point ' + p.i + ': ' + VERDICT_WORD[p.v].toLowerCase() + ', interrupting ' + p.op);
+      b.setAttribute('aria-pressed', p.i === state.point ? 'true' : 'false');
       b.title = 'crash point ' + p.i + ' - ' + VERDICT_WORD[p.v].toLowerCase() + '\n' + p.op;
       b.addEventListener('click', function () { select(p.i); });
+      b.addEventListener('keydown', function (/** @type {any} */ ev) {
+        var k = ev.key;
+        var to = -1;
+        if (k === 'ArrowRight' || k === 'ArrowDown') to = clampPoint(view, p.i + 1);
+        else if (k === 'ArrowLeft' || k === 'ArrowUp') to = clampPoint(view, p.i - 1);
+        else if (k === 'Home') to = 0;
+        else if (k === 'End') to = view.points.length - 1;
+        if (to < 0) return;
+        ev.preventDefault();
+        select(to);
+        var next = grid.children[to];
+        if (next) next.focus();
+      });
       grid.appendChild(b);
     });
-    $('matrix-summary').textContent = view.crashPoints + ' crash points, ' + view.schedules +
-      ' crash schedules, ' + view.corrupt + ' corrupt, ' + view.unverifiable + ' unverifiable';
-    $('matrix-note').textContent =
-      'seed ' + view.seed + ', build ' + view.build + ', reorder bound ' + view.bound + ': ' +
-      view.mutations + ' mutations produced ' + view.opCount + ' I/O operations, and every boundary ' +
-      'between two of them is a place the machine can lose power. Click a cell.';
   }
 
   function renderViewPicker() {
     var sel = $('view');
     sel.textContent = '';
     DATA.views.forEach(function (/** @type {any} */ v) {
-      var o = el('option', null, 'seed ' + v.seed + '  ·  ' + v.build +
-        '  ·  ' + v.corrupt + ' corrupt / ' + v.crashPoints);
+      var label = v.build === 'correct'
+        ? 'seed ' + v.seed + '  ·  correct build  ·  no findings'
+        : 'seed ' + v.seed + '  ·  ' + v.build + '  ·  ' + v.corrupt + ' corrupt / ' + v.crashPoints;
+      var o = el('option', null, label);
       o.value = v.seed + '|' + v.build;
       sel.appendChild(o);
     });
@@ -217,110 +393,130 @@
       var kind = state.view.corrupt > 0 ? 'x' : (state.view.unverifiable > 0 ? 'u' : 'c');
       select(nextOfKind(state.view, state.point, kind));
     });
-  }
-
-  function renderControl() {
-    var c = DATA.control;
-    var box = $('control');
-    box.textContent = '';
-    [
-      [String(c.seeds), 'workloads, correct build'],
-      [String(c.crashPoints), 'crash points enumerated'],
-      [String(c.schedules), 'crash schedules run'],
-      [String(c.corrupt), 'corrupt'],
-      [String(c.unverifiable), 'unverifiable'],
-    ].forEach(function (/** @type {string[]} */ pair) {
-      var s = el('div', 'stat');
-      s.appendChild(el('span', 'n' + (pair[1] === 'corrupt' && c.corrupt === 0 ? ' ok' : ''), pair[0]));
-      s.appendChild(el('span', 'l', pair[1]));
-      box.appendChild(s);
+    $('copy-replay').addEventListener('click', function () {
+      var btn = $('copy-replay');
+      var text = $('replay').textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = 'Copied';
+          window.setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+        });
+      }
     });
   }
 
-  /** @param {any} table @param {string[]} cells */
-  function headerRow(table, cells) {
-    var tr = el('tr');
-    cells.forEach(function (/** @type {string} */ c) { tr.appendChild(el('th', null, c)); });
-    table.appendChild(tr);
-  }
-
-  function renderFixtures() {
-    var t = $('fixtures');
-    t.textContent = '';
-    headerRow(t, ['fixture', 'breaks', 'seeds that fail', 'corrupt crash points', 'what goes wrong']);
-    DATA.fixtures.forEach(function (/** @type {any} */ f) {
-      /** @type {any} */
-      var bug = null;
-      DATA.bugs.forEach(function (/** @type {any} */ b) { if (b.id === f.id) bug = b; });
-      var tr = el('tr');
-      tr.appendChild(el('td', 'num', f.id));
-      tr.appendChild(el('td', null, bug ? bug.breaks : 'store'));
-      tr.appendChild(el('td', 'num' + (f.seedsCorrupt >= f.floor ? ' ok' : ' no'),
-        f.seedsCorrupt + ' / ' + f.seedsTried));
-      tr.appendChild(el('td', 'num', String(f.corruptPoints)));
-      tr.appendChild(el('td', null, f.note));
-      t.appendChild(tr);
-    });
-    var s = DATA.sabotage;
-    var sabotageRow = el('tr');
-    sabotageRow.appendChild(el('td', 'num', 'checker-accept-corrupt'));
-    sabotageRow.appendChild(el('td', null, 'checker'));
-    sabotageRow.appendChild(el('td', 'num ok', s.sabotaged === 0 ? 'fires' : 'DEAD'));
-    sabotageRow.appendChild(el('td', 'num', s.honest + ' → ' + s.sabotaged));
-    sabotageRow.appendChild(el('td', null,
-      'The fifth fixture breaks the CHECKER instead of the store. With it on, the same enumeration ' +
-      'over the same genuinely broken store reports ' + s.sabotaged + ' corrupt crash points instead of ' +
-      s.honest + '. A checker whose failure path has never been exercised is decoration.'));
-    t.appendChild(sabotageRow);
-    $('sabotage-note').textContent =
-      'And the sabotage is targeted rather than a blanket pass: it forgives a lost acknowledged write ' +
-      'and nothing else, so an invented value is still caught (' + s.targetedHonest + ' → ' +
-      s.targetedSabotaged + ' corrupt crash points).';
-  }
+  // ----------------------------------------------------------------- bound
 
   function renderBounds() {
-    var t = $('bounds');
-    t.textContent = '';
-    headerRow(t, ['reorder bound', 'consistent', 'corrupt', 'unverifiable']);
+    var box = $('bounds');
+    box.textContent = '';
+    var max = 0;
     DATA.bounds.forEach(function (/** @type {any} */ b) {
-      var tr = el('tr');
-      tr.appendChild(el('td', 'num', String(b.bound)));
-      tr.appendChild(el('td', 'num', String(b.consistent)));
-      tr.appendChild(el('td', 'num' + (b.corrupt === 0 ? ' ok' : ' no'), String(b.corrupt)));
-      tr.appendChild(el('td', 'num' + (b.unverifiable > 0 ? ' maybe' : ''), String(b.unverifiable)));
-      t.appendChild(tr);
+      var total = b.consistent + b.corrupt + b.unverifiable;
+      if (total > max) max = total;
     });
+    DATA.bounds.forEach(function (/** @type {any} */ b) {
+      var total = b.consistent + b.corrupt + b.unverifiable;
+      var row = add(box, 'div', 'bound-row');
+      var k = add(row, 'div', 'bound-row__k');
+      add(k, 'span', null, 'bound ');
+      add(k, 'b', null, String(b.bound));
+      var stack = add(row, 'div', 'stack');
+      stack.style.width = (100 * total / max).toFixed(1) + '%';
+      // A label only goes inside a segment wide enough to hold it; a clipped
+      // half-word is worse than no word. Narrow segments get an outside label.
+      var cPct = 100 * b.consistent / total;
+      var c = add(stack, 'i', 'seg-c');
+      c.style.width = cPct.toFixed(2) + '%';
+      c.title = num(b.consistent) + ' proven consistent';
+      if (cPct >= 14) add(c, 'em', null, num(b.consistent) + ' proven');
+      if (b.unverifiable > 0) {
+        var uPct = 100 * b.unverifiable / total;
+        var u = add(stack, 'i', 'seg-u');
+        u.style.width = uPct.toFixed(2) + '%';
+        u.title = num(b.unverifiable) + ' unverifiable';
+        if (uPct >= 14) add(u, 'em', null, num(b.unverifiable) + ' unverifiable');
+      }
+      if (b.unverifiable > 0 && (100 * b.unverifiable / total) < 14) {
+        add(row, 'span', 'bound-row__tail', num(b.unverifiable) + ' unverifiable');
+      }
+    });
+    var first = DATA.bounds[0];
+    var settled = null;
+    DATA.bounds.forEach(function (/** @type {any} */ b) {
+      if (settled === null && b.unverifiable === 0) settled = b.bound;
+    });
+    $('bounds-note').textContent =
+      'Over 30 seeds of the correct build. By bound ' + settled + ' nothing is left unverifiable, and ' +
+      'raising it further changes nothing — that flat tail is why the default bound of 4 enumerates ' +
+      'the whole space rather than a slice.';
   }
 
+  // --------------------------------------------------------------- targets
+
   function renderTargets() {
-    var t = $('targets');
-    t.textContent = '';
+    var box = $('target-cards');
+    box.textContent = '';
     if (!DATA.targets || !DATA.targets.results) {
       $('targets-note').textContent =
         'No target results are recorded in this report. Run: node src/cli.js targets';
       return;
     }
-    headerRow(t, ['target', 'verdict', 'crash points', 'what happened']);
     DATA.targets.results.forEach(function (/** @type {any} */ r) {
-      var tr = el('tr');
-      tr.appendChild(el('td', 'num', r.id));
+      var card = add(box, 'article', 'tg');
+      var top = add(card, 'div', 'tg__top');
+      add(top, 'span', 'tg__id', r.id);
       var cls = r.verdict === 'consistent' ? 'ok' : r.verdict === 'corrupt' ? 'no' : 'maybe';
-      tr.appendChild(el('td', 'num ' + cls, r.verdict));
-      tr.appendChild(el('td', 'num', String(r.checked)));
-      var last = el('td');
-      last.appendChild(el('div', null, r.title + ' - ' + r.detail));
-      r.notes.forEach(function (/** @type {string} */ n) { last.appendChild(el('div', 'muted', n)); });
-      tr.appendChild(last);
-      t.appendChild(tr);
+      add(top, 'span', 'tg__verdict ' + cls, r.verdict);
+      add(card, 'h3', 'tg__title', r.title);
+
+      var nums = add(card, 'div', 'tg__nums');
+      /** @param {string} v @param {string} l @param {boolean} ok */
+      function stat(v, l, ok) {
+        var d = add(nums, 'div', 'tg__num');
+        add(d, 'b', ok ? 'is-ok' : null, v);
+        add(d, 'span', null, l);
+      }
+      stat(num(r.checked), 'crash points checked', false);
+      stat(num(r.corrupt), 'corruptions', r.corrupt === 0);
+      if (r.killPhase) stat(num(r.killPhase.checked), 'real SIGKILLs', false);
+      if (r.imagePhase) stat(num(r.imagePhase.mismatches), 'model vs disk mismatches', r.imagePhase.mismatches === 0);
+
+      add(card, 'p', 'tg__detail', r.detail);
+
+      // The false-positive removal is a result about the harness's own honesty,
+      // so it stays on the card. The rest are caveats: real, and not worth the
+      // reader's first pass.
+      var mark = 'FALSE POSITIVE REMOVED:';
+      /** @type {string[]} */
+      var caveats = [];
+      r.notes.forEach(function (/** @type {string} */ n) {
+        if (n.indexOf(mark) === 0) {
+          var p = add(card, 'p', 'tg__note');
+          add(p, 'strong', null, 'False positive removed.');
+          add(p, 'span', null, ' ' + n.slice(mark.length).trim());
+        } else {
+          caveats.push(n);
+        }
+      });
+      if (caveats.length > 0) {
+        var d = add(card, 'details', 'more');
+        add(d, 'summary', null, caveats.length === 1 ? 'One caveat' : caveats.length + ' caveats');
+        var body = add(d, 'div', 'more__body');
+        caveats.forEach(function (/** @type {string} */ n) { add(body, 'p', null, n); });
+      }
     });
     $('targets-note').textContent =
-      'Measured on ' + DATA.targets.platform + ', Node ' + DATA.targets.node + ', seed ' +
-      DATA.targets.seed + '. The one thing a process kill cannot do is lose the operating ' +
-      'system’s page cache, so a missing fsync is invisible to T1 and obvious to the ' +
-      'enumerator. That gap is the argument for modelling the device at all.';
+      'The model is only worth trusting if it agrees with a real disk. A SIGKILL cannot lose the page ' +
+      'cache, so a missing fsync is invisible to it and obvious to the enumerator — which is the whole ' +
+      'argument for modelling the device. Measured on ' + DATA.targets.platform + ', Node ' +
+      DATA.targets.node + ', seed ' + DATA.targets.seed + '.';
   }
 
+  // ------------------------------------------------------------------- run
+
   function renderAll() {
+    renderViewStats();
     renderVerdict();
     renderMatrix();
     $('view').value = state.view.seed + '|' + state.view.build;
@@ -333,15 +529,21 @@
     renderAll();
   }
 
+  // A shared deep link should land on the crash point it names; a bare visit
+  // should land on the result.
+  var arrivedDeep = new URLSearchParams(location.search).has('point');
+
   readUrl();
-  renderViewPicker();
+  renderProvenance();
   renderControl();
+  renderViewPicker();
   renderFixtures();
   renderBounds();
   renderTargets();
   renderAll();
   writeUrl(true);
-  $('generated').textContent = 'Generated ' + DATA.generated + ' on ' + DATA.platform +
+  if (arrivedDeep) $('enumerator').scrollIntoView();
+  $('generated').textContent = ' Generated ' + DATA.generated + ' on ' + DATA.platform +
     ', Node ' + DATA.node + '.';
   window.addEventListener('popstate', function () { readUrl(); renderAll(); });
 })();
