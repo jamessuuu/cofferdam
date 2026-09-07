@@ -82,6 +82,38 @@ test('the page is self-contained: no server, no network, no build step at view t
   assert.ok(!/XMLHttpRequest/.test(app));
 });
 
+// Only Newsreader ships an italic face. Anything else set to font-style:italic
+// gets a synthesized oblique - the browser shearing a roman - and no font check
+// can see it, because document.fonts.check('italic 16px Archivo') returns TRUE
+// when only a roman Archivo is loaded. The family matches and the browser will
+// happily fake it. So the rule is enforced statically instead.
+test('no text can land on a synthesized italic', () => {
+  const css = read('web', 'style.css');
+
+  // Which families actually have an italic face?
+  const italicFamilies = new Set();
+  for (const block of css.matchAll(/@font-face\s*\{([^}]*)\}/g)) {
+    const body = block[1];
+    if (!/font-style:\s*italic/.test(body)) continue;
+    const fam = body.match(/font-family:\s*"([^"]+)"/);
+    if (fam) italicFamilies.add(fam[1]);
+  }
+  assert.ok(italicFamilies.has('Newsreader'), 'Newsreader must ship the italic face the design relies on');
+
+  // The UA stylesheet italicises these by default, so they are reset globally
+  // and opted back in only where a real italic face is loaded.
+  assert.match(css, /em,\s*i,\s*cite,\s*dfn,\s*var,\s*address\s*\{\s*font-style:\s*normal;\s*\}/,
+    'the default-italic elements must be reset, or a stray <em> silently gets a sheared Archivo');
+
+  // Every remaining italic must sit in the one block that uses Newsreader.
+  const withoutFontFace = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+  for (const rule of withoutFontFace.matchAll(/([^{}]+)\{([^}]*font-style:\s*italic[^}]*)\}/g)) {
+    const selector = rule[1].trim().split('\n').pop().trim();
+    assert.ok(selector.startsWith('.prior'),
+      `"${selector}" sets font-style:italic outside the Newsreader block; it would be synthesized`);
+  }
+});
+
 test('the report the page renders is the report the CLI can re-run', () => {
   const committed = JSON.parse(read('crashes.json'));
   const data = read('web', 'data.js');

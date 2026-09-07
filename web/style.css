@@ -191,8 +191,29 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; margin: 0; }
   text-wrap: balance;
 }
 
+/* Only ONE family in this system has a real italic: Newsreader. Archivo and
+   Commit Mono ship roman only, so any element the UA stylesheet italicises by
+   default — em, i, cite, dfn, var, address — gets a SYNTHESIZED oblique: Chrome
+   shears the roman, producing letterforms no designer drew.
+   document.fonts.check("italic 16px Archivo") returns TRUE in that situation,
+   because the family matches and the browser will happily fake it, so no font
+   check can catch this. Hence a default reset, and italic opted into only where
+   a real italic face is loaded (.prior, below). */
+em, i, cite, dfn, var, address { font-style: normal; }
+
 .display em { font-style: normal; color: var(--ok); }
 .display .u { color: var(--ink-3); }
+
+/* A verdict value named inside prose. "unverifiable" is one of this tool's
+   three outcomes, and it already carries the warn colour in the legend, the
+   readout strip, the bound bars and the target chips — so it is set as the
+   token it is rather than leant on with a slant it has no face for. */
+.tok {
+  font-family: var(--f-data);
+  font-size: 0.94em;
+  color: var(--warn);
+  font-style: normal;
+}
 
 .section-title {
   font-size: clamp(1.45rem, 1.1rem + 1.6vw, 2.1rem);
@@ -992,6 +1013,10 @@ button.control--go:hover {
   max-width: 68ch;
   margin: 0;
 }
+
+/* Newsreader is the one family with a real italic face, so this is the only
+   place the reset above is opted back out of. */
+.prior em, .prior i, .prior cite { font-style: italic; }
 
 .prior a { font-style: normal; font-family: var(--f-text); font-size: 0.94em; }
 
