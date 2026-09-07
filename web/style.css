@@ -324,6 +324,52 @@ a:hover { color: var(--ink-1); }
     radial-gradient(40% 38% at 88% 8%, oklch(0.8 0.14 168 / 9%), transparent 70%);
 }
 
+/* ===================================================== 4b. HERO FIELD ===== */
+
+/* Below 1080px the hero is a single column and the field is not rendered at
+   all — a dense grid shrunk into a phone column is mush, not evidence. */
+.hero__grid { display: block; }
+.field { display: none; }
+
+@media (min-width: 1080px) {
+  .hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 40px;
+  }
+  .field { display: block; margin: 0; flex: none; }
+}
+
+/* One cell per workload in the negative control. No shadow, no blur, no blend
+   and no per-cell animation: this is ~200 nodes and it has to cost nothing.
+   Measured after adding it — see docs/. */
+.field__grid {
+  display: grid;
+  grid-template-columns: repeat(20, 15px);
+  gap: 4px;
+}
+
+.field__cell {
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--ok-dim);
+}
+
+.field__cell.is-bad { background: var(--bad); }
+
+.field__cap {
+  margin-top: 12px;
+  font-family: var(--f-data);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--ink-3);
+  max-width: 25rem;
+}
+
+.field__cap b { color: var(--ink-2); font-weight: 500; }
+
 /* ============================================= 5. PROVENANCE CHIP ROW ===== */
 
 .provenance {

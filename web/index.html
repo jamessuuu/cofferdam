@@ -36,15 +36,27 @@
 <!-- =============================================================== HERO === -->
 <section class="hero" id="result">
   <div class="shell">
-    <p class="eyebrow rise">Bounded black-box crash testing</p>
-    <h1 class="display rise rise-2" style="margin-top:14px">
-      12,600 crash points.<br><em>Zero</em> corruptions.
-    </h1>
-    <p class="lede rise rise-3">
-      Every I/O boundary becomes a crash point, and every un-fsynced reordering at each one is
-      enumerated &mdash; all of them, not a sample. The same harness catches all four planted
-      durability bugs.
-    </p>
+    <div class="hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow rise">Bounded black-box crash testing</p>
+        <h1 class="display rise rise-2" style="margin-top:14px">
+          12,600 crash points.<br><em>Zero</em> corruptions.
+        </h1>
+        <p class="lede rise rise-3">
+          Every I/O boundary becomes a crash point, and every un-fsynced reordering at each one is
+          enumerated &mdash; all of them, not a sample. The same harness catches all four planted
+          durability bugs.
+        </p>
+      </div>
+
+      <!-- The control run as a field: one cell per workload, coloured by that
+           workload's own verdict. Decorative for assistive tech only because
+           the navigable matrix with the same colour language lives below. -->
+      <figure class="field rise rise-3" aria-hidden="true">
+        <div class="field__grid" id="field"></div>
+        <figcaption class="field__cap" id="field-cap"></figcaption>
+      </figure>
+    </div>
 
     <ul class="provenance rise rise-3" id="provenance"></ul>
 

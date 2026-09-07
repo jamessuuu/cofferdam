@@ -126,6 +126,27 @@
     });
   }
 
+  // The negative control drawn as a field: one cell per workload, so the empty
+  // half of the hero says the headline a second way with the project's own
+  // data. It is only drawn when the data can actually support every cell:
+  // `corrupt` counts crash points rather than workloads, so a non-zero count
+  // cannot be attributed to particular cells, and a field that guessed would be
+  // decoration pretending to be evidence.
+  function renderField() {
+    var c = DATA.control;
+    var grid = $('field');
+    var fig = grid.parentNode;
+    if (c.corrupt !== 0 || c.unverifiable !== 0) {
+      fig.style.display = 'none';
+      return;
+    }
+    for (var i = 0; i < c.seeds; i++) add(grid, 'div', 'field__cell');
+    var cap = $('field-cap');
+    add(cap, 'b', null, num(c.seeds) + ' workloads');
+    add(cap, 'span', null, ', one cell each — ' + num(c.crashPoints) + ' crash points and ' +
+      num(c.schedules) + ' schedules between them. No cell is corrupt.');
+  }
+
   function renderControl() {
     var c = DATA.control;
     var box = $('control');
@@ -535,6 +556,7 @@
 
   readUrl();
   renderProvenance();
+  renderField();
   renderControl();
   renderViewPicker();
   renderFixtures();
